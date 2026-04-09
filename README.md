@@ -58,7 +58,7 @@
 ```json
 [
   {
-    "cat_name": "Bangladesh Television",
+    "cat_name": "Group/Category",
     "livetvs": [
       {
         "id": 23,
@@ -69,3 +69,10 @@
     ]
   }
 ]
+
+### Example M3U Output:
+```html
+#EXTM3U
+
+#EXTINF:-1 tvg-id="23" tvg-logo="https://example.com/btvnews.png" group-title="Bangladesh Television",BTV News
+https://example.com/btvnews.m3u8
