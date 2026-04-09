@@ -62,17 +62,19 @@
     "livetvs": [
       {
         "id": 23,
-        "channel_name": "BTV News",
-        "stream_url": "https://example.com/btvnews.m3u8",
-        "channel_logo": "https://example.com/btvnews.png"
+        "channel_name": "Channel 1",
+        "stream_url": "https://example.com/channel1.m3u8",
+        "channel_logo": "https://example.com/channel1.png"
       }
     ]
   }
 ]
 
+```
 ### Example M3U Output:
 ```html
 #EXTM3U
 
-#EXTINF:-1 tvg-id="23" tvg-logo="https://example.com/btvnews.png" group-title="Bangladesh Television",BTV News
-https://example.com/btvnews.m3u8
+#EXTINF:-1 tvg-id="1" tvg-logo="https://example.com/bbc.png" group-title="Group/Category", Channel 1
+https://example.com/channel1.m3u8
+
