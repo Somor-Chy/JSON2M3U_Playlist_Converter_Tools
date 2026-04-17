@@ -541,57 +541,112 @@
         // ----- JSON -> M3U (adapted from previous) -----
         const SAMPLE_JSON = [{"cat_name":"News","livetvs":[{"id":1,"channel_name":"BBC","stream_url":"http://ex.com/bbc.m3u8","channel_logo":"http://ex.com/bbc.png"}]}];
 
-        function extractChannelsFromJson(jsonData) {
-            const idKeys = getMappingKeys(mapId.value);
-            const logoKeys = getMappingKeys(mapLogo.value);
-            const groupKeys = getMappingKeys(mapGroup.value);
-            const titleKeys = getMappingKeys(mapTitle.value);
-            const urlKeys = getMappingKeys(mapUrl.value);
+        // ----- Improved JSON → Channels extraction (FIXED) -----
+function extractChannelsFromJson(jsonData) {
+    const idKeys = getMappingKeys(mapId.value);
+    const logoKeys = getMappingKeys(mapLogo.value);
+    const groupKeys = getMappingKeys(mapGroup.value);
+    const titleKeys = getMappingKeys(mapTitle.value);
+    const urlKeys = getMappingKeys(mapUrl.value);
 
-            function looksLikeChannelArray(arr) {
-                if (!Array.isArray(arr) || !arr.length) return false;
-                const first = arr[0];
-                if (!first || typeof first !== 'object') return false;
-                for (let key in first) if (urlKeys.some(u => key.toLowerCase().includes(u))) return true;
-                return false;
-            }
-            function extractContexts(data, parent=null, visited=new WeakSet()) {
-                let res = [];
-                if (!data || typeof data !== 'object') return res;
-                if (visited.has(data)) return res;
-                visited.add(data);
-                if (Array.isArray(data)) {
-                    if (looksLikeChannelArray(data)) res.push({array:data, parent});
-                    else for (let item of data) res.push(...extractContexts(item, data, visited));
-                } else {
-                    for (let key in data) if (data.hasOwnProperty(key)) res.push(...extractContexts(data[key], data, visited));
-                }
-                return res;
-            }
-            const contexts = extractContexts(jsonData);
-            const channels = [];
-            let counter = 0;
-            for (let ctx of contexts) {
-                let parentGroup = '';
-                if (ctx.parent) for (let k in ctx.parent) if (groupKeys.some(g => k.toLowerCase().includes(g))) { parentGroup = String(ctx.parent[k]??''); break; }
-                for (let item of ctx.array) {
-                    if (!item || typeof item !== 'object') continue;
-                    counter++;
-                    let id='', logo='', group=parentGroup, title='', url='';
-                    for (let k in item) {
-                        const lk = k.toLowerCase(); const val = item[k]!=null?String(item[k]):'';
-                        if(!id && idKeys.some(ik=>lk.includes(ik))) id=val;
-                        if(!logo && logoKeys.some(lk=>lk.includes(lk))) logo=val;
-                        if(!group && groupKeys.some(gk=>lk.includes(gk))) group=val;
-                        if(!title && titleKeys.some(tk=>lk.includes(tk))) title=val;
-                        if(!url && urlKeys.some(uk=>lk.includes(uk))) url=val;
-                    }
-                    if(!title) title = `Channel ${counter}`;
-                    if(url) channels.push({id,logo,group,title,url});
-                }
-            }
-            return channels;
+    // চ্যানেল অ্যারে চেনার ফাংশন
+    function looksLikeChannelArray(arr) {
+        if (!Array.isArray(arr) || !arr.length) return false;
+        const first = arr[0];
+        if (!first || typeof first !== 'object') return false;
+        // যেকোনো ইউআরএল কী থাকলেই ধরে নেব চ্যানেল লিস্ট
+        for (let key in first) {
+            if (urlKeys.some(u => key.toLowerCase().includes(u))) return true;
         }
+        return false;
+    }
+
+    // রিকার্সিভ সার্চ: অবজেক্টের ভেতর থেকে চ্যানেল অ্যারে ও প্যারেন্ট গ্রুপ বের করা
+    function extractContexts(data, parent = null, visited = new WeakSet()) {
+        let results = [];
+        if (!data || typeof data !== 'object') return results;
+        if (visited.has(data)) return results;
+        visited.add(data);
+
+        if (Array.isArray(data)) {
+            if (looksLikeChannelArray(data)) {
+                results.push({ array: data, parent });
+            } else {
+                for (let item of data) {
+                    results.push(...extractContexts(item, data, visited));
+                }
+            }
+        } else {
+            for (let key in data) {
+                if (data.hasOwnProperty(key)) {
+                    results.push(...extractContexts(data[key], data, visited));
+                }
+            }
+        }
+        return results;
+    }
+
+    const contexts = extractContexts(jsonData);
+    const channels = [];
+    let counter = 0;
+
+    for (let ctx of contexts) {
+        // প্যারেন্ট অবজেক্ট থেকে গ্রুপ নাম বের করা (যেমন "title" বা "cat_name")
+        let parentGroup = '';
+        if (ctx.parent && typeof ctx.parent === 'object') {
+            for (let parentKey in ctx.parent) {
+                const lowerKey = parentKey.toLowerCase();
+                // গ্রুপ ম্যাপিং কীগুলোর সাথে মিল খোঁজা
+                if (groupKeys.some(gk => lowerKey.includes(gk))) {
+                    parentGroup = String(ctx.parent[parentKey] ?? '');
+                    break;
+                }
+            }
+        }
+
+        for (let item of ctx.array) {
+            if (!item || typeof item !== 'object') continue;
+            counter++;
+
+            let id = '', logo = '', group = parentGroup, title = '', url = '';
+
+            // প্রতিটি চ্যানেল অবজেক্টের সব ফিল্ড চেক করা
+            for (let key in item) {
+                const lowerKey = key.toLowerCase();
+                const value = item[key] != null ? String(item[key]) : '';
+
+                if (!id && idKeys.some(ik => lowerKey.includes(ik))) {
+                    id = value;
+                }
+                // লোগোর জন্য আলাদা করে ম্যাচিং (এখন ঠিকমতো কাজ করবে)
+                if (!logo && logoKeys.some(lk => lowerKey.includes(lk))) {
+                    logo = value;
+                }
+                if (!group && groupKeys.some(gk => lowerKey.includes(gk))) {
+                    group = value;
+                }
+                if (!title && titleKeys.some(tk => lowerKey.includes(tk))) {
+                    title = value;
+                }
+                if (!url && urlKeys.some(uk => lowerKey.includes(uk))) {
+                    url = value;
+                }
+            }
+
+            if (!title) title = `Channel ${counter}`;
+            if (url) {
+                channels.push({
+                    id: id,
+                    logo: logo,
+                    group: group,
+                    title: title,
+                    url: url
+                });
+            }
+        }
+    }
+    return channels;
+}
 
         function convertToM3u(channels) {
             const lines = ['#EXTM3U', '', ''];
